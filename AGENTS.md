@@ -54,3 +54,30 @@ The raw data has many spelling variants for the same place (case differences, Th
 { "variant spelling": "canonical name" }
 ```
 Then run `/refresh-trip-data` (or `node scripts/group-by-start.mjs`) to regenerate. No new skill needed — corrections feed directly into the existing pipeline.
+
+## Homepage architecture
+
+The homepage (`app/page.tsx`) lets users look up the recorded distance between two locations using two dependent dropdowns.
+
+### Component split
+
+| Layer | File | Rendering |
+|---|---|---|
+| Data loader | `app/page.tsx` | Server Component — reads `map.csv` with `fs.readFileSync` |
+| Interactive UI | `components/TripFinder.tsx` | Client Component (`'use client'`) — dropdowns + result card |
+
+### Data loading pattern
+
+`app/page.tsx` reads `public/data/grouped/map.csv` at request time using Node's `fs` module (no API route needed). It parses the entries and passes `MapEntry[]` to `<TripFinder>` as props.
+
+When the user selects a starting point, `TripFinder` fetches `/data/grouped/{index}.csv` via the browser's `fetch` API — Next.js serves `public/` as static files at the root URL. No server round-trip is needed for the destination list.
+
+### CSV parsing
+
+- **`map.csv`** (Server Component): `line.slice(0, line.indexOf(','))` for the index, `line.slice(line.indexOf(',') + 1)` for the name. Lines are `.trimEnd()`-ed to strip `\r` on Windows-generated CRLF files.
+- **`{index}.csv`** (Client Component): plain `.split(',')` is safe — the grouped files contain no quoted commas (unlike the raw files in `public/data/raw/`).
+- **Deduplication**: a `Map<destinationName, distance>` with first-wins insertion. The same route can appear multiple times across different months; the first recorded distance is shown.
+
+### Types
+
+`MapEntry = { index: string; name: string }` is exported from `app/page.tsx` and imported as a type in `components/TripFinder.tsx`.
