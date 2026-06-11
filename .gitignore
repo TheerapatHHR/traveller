@@ -39,3 +39,8 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# trip data
+/public/data/raw/
+/public/data/cleaned/
+/public/data/grouped/
